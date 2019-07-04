@@ -8,7 +8,7 @@ class FcModel(nn.Module):
               ,input_dimensions
               ,hidden_dimenssions
               ,output_dimenssions):
-        super(Model, self).__init__()
+        super(FcModel, self).__init__()
 
         self.input = nn.Linear(input_dimensions, hidden_dimenssions)
         self.hidden = nn.Linear(hidden_dimenssions, hidden_dimenssions)
