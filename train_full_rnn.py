@@ -4,7 +4,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 import torch
 import numpy as np
-
+from mgtUtils import plot_loss
 
 class FullLSTM(nn.Module):
     def __init__(self, input_dimensions, output_dimension = 1, hidden_dimensions=100, nb_layers=1, batch_size=3):
@@ -110,7 +110,10 @@ class FullLSTM(nn.Module):
 
         # pick the values for the label and zero out the rest with the mask
         # Y_hat = Y_hat[range(Y_hat.shape[0]), Y] * mask
-        Y_hat = Y_hat[range(Y_hat.shape[0])]
+        # Y_hat = Y_hat[range(Y_hat.shape[0])]
+        mask = [s - 1 for s in X_lengths]
+        Y_hat = Y_hat[mask, 0]
+
 
         # compute cross entropy loss which ignores all <PAD> tokens
         # ce_loss = -torch.sum(Y_hat) / nb_tokens
@@ -124,12 +127,27 @@ max_len = max(seqs_len)
 seqs_pad = [s + [0]*(max_len - len(s)) for s in seqs]
 target = np.random.normal(size=len(seqs))
 
-model = FullLSTM(input_dimensions=1, batch_size=3)
-
 # (batch_size, seq_len, embedding_dim)
 x = torch.Tensor(seqs_pad)
 x = x.unsqueeze(2)
-yhat = model(x, seqs_len)
 
-yhat = model(x, seqs_len)
-model.loss(yhat, torch.Tensor(target), 1)
+lr = 1e-04
+decay = 0.9
+
+
+model = FullLSTM(input_dimensions=1, batch_size=3)
+optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=decay)
+
+losses = []
+for i in range(1000):
+    yhat = model(x, seqs_len)
+    loss = model.loss(yhat, torch.Tensor(target), seqs_len)
+    print(i)
+    losses.append(loss)
+    optimizer.zero_grad()
+    # loss.backward(retain_graph=True)
+    loss.backward()
+    optimizer.step()
+
+
+plot_loss(losses)
