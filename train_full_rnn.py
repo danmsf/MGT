@@ -7,7 +7,7 @@ import numpy as np
 from mgtUtils import plot_loss, plot_pred
 
 class FullLSTM(nn.Module):
-    def __init__(self, input_dimensions, output_dimension = 1, hidden_dimensions=100, nb_layers=1, batch_size=3):
+    def __init__(self, input_dimensions, output_dimension=1, hidden_dimensions=100, nb_layers=1, batch_size=3):
         super(FullLSTM, self).__init__()
 
         self.nb_lstm_layers = nb_layers
@@ -139,7 +139,7 @@ seqs_len = [len(s) for s in seqs]
 max_len = max(seqs_len)
 seqs_pad = [s + [0]*(max_len - len(s)) for s in seqs]
 target = np.random.normal(size=len(seqs))
-
+import torch
 # (batch_size, seq_len, embedding_dim)
 x = torch.Tensor(seqs_pad)
 x = x.unsqueeze(2)
@@ -147,23 +147,40 @@ x = x.unsqueeze(2)
 lr = 1e-04
 decay = 0.9
 
+from torch.utils.data import DataLoader
+from dataset import  DatasetLstmFull
+from torch.autograd import Variable
 
-model = FullLSTM(input_dimensions=1, batch_size=3)
+
+batchpath = "C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\batchlist.txt"
+jsonpath = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\labels.json'
+batch_size = 1
+train_dataset = DatasetLstmFull(jsonpath, batchpath)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+x, y, x_length = train_dataset.__getitem__(10)
+input_dimension = x.transpose(0,2).transpose(0,1).shape[2]
+
+model = FullLSTM(input_dimensions=input_dimension, batch_size=batch_size)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=decay)
 loss = model.criterion
 losses = []
-for i in range(3000):
-    yhat = model(x, seqs_len)
+
+for batch_idx, (data, target, x_length) in enumerate(train_loader):
+    print(batch_idx)
+    data = data.squeeze(0).transpose(0, 2).transpose(0, 1)
+    data, target = Variable(data), Variable(target)
+    yhat = model(data, [x_length])
     # loss, yhat = model.loss(yhat, torch.Tensor(target), seqs_len)
-    loss = model.criterion(yhat.squeeze(1), torch.Tensor(target))
-    print(i)
+    loss = model.criterion(yhat, target.squeeze(1))
     losses.append(loss)
     optimizer.zero_grad()
     # loss.backward(retain_graph=True)
     loss.backward()
     optimizer.step()
-
-
-plot_loss(losses)
+    if batch_idx % 10 == 0 :
+        print('loss {}').format(loss)
+    if batch_idx % 100 == 0 :
+        plot_loss(losses)
 
 plot_pred(yhat.detach().squeeze(), target)

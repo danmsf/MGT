@@ -58,3 +58,45 @@ class DatasetLstmMGT(Dataset):
         target_tensor = target_tensor[1:]
         return panel_tensor, target_tensor
 
+
+import json
+import pandas as pd
+import pyodbc
+
+class DatasetLstmFull(Dataset):
+
+    def __init__(self, labelspath, batchlist, transform=None):
+        self.db = pyodbc.connect('Driver={SQL Server};'
+                        'UID=Dan;'
+                        'Server=localhost;'
+                        'Database=Cimplicity;'
+                        'PWD=D@2019;'
+                        'Trusted_Connection=no;')
+        self.listIDs, self.target = self.__getindexlabels__(labelspath, batchlist)
+        self.len = self.__len__()
+
+    def __len__(self):
+        return len(self.listIDs)
+
+    def __getindexlabels__(self, jsonpath, batchlist):
+        with open(jsonpath, "r") as file:
+            labels = json.load(file)
+
+        with open(batchlist, "r") as file:
+            index_list = file.read().split('\n')
+        return index_list[:-2], labels
+
+    def __getitem__(self, index):
+        ID = self.listIDs[index]
+        query = "SELECT BATCH_VAL0, STATESTR_VAL0, timeFromStartBatch, Temp1, Temp11, Temp2, Temp6, Temp7, Temp8, RPM1, RPM2, RPM3, Curr3, Prss1, WT1, WT2" + \
+                " FROM [dbo].[GSTAT_CYAN_CTR_Final] WHERE STATESTR_VAL0 IN ('Pre-Mixing','Heating1','Hot1') AND BATCH_VAL0 IN {} ".format(tuple([ID]+['0']))
+        inputs = pd.read_sql(query, self.db)
+        inputs = torch.from_numpy(inputs \
+                                .sort_values(['timeFromStartBatch']) \
+                                .drop(columns=['STATESTR_VAL0', 'BATCH_VAL0','timeFromStartBatch']) \
+                                .values.T).to(torch.float32).view(-1, 1, inputs.shape[0])
+        x_length = inputs.shape[2]
+        inputs_pad = torch.zeros(size=(inputs.shape[0], inputs.shape[1], 3000))
+        inputs_pad[:,:,:x_length] = inputs
+        target = torch.Tensor([self.target[ID]])
+        return inputs_pad, target, x_length
