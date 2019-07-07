@@ -4,7 +4,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 import torch
 import numpy as np
-from mgtUtils import plot_loss
+from mgtUtils import plot_loss, plot_pred
 
 class FullLSTM(nn.Module):
     def __init__(self, input_dimensions, output_dimension = 1, hidden_dimensions=100, nb_layers=1, batch_size=3):
@@ -40,6 +40,14 @@ class FullLSTM(nn.Module):
 
         return (hidden_a, hidden_b)
 
+    def last_timestep(self, unpacked, lengths):
+        # Index of the last output for each sequence.
+        # this is only correct for batch_frits = True ; otherwise change indexing in 47 and 49
+        lengths = torch.LongTensor(lengths)
+        idx = (lengths - 1).view(-1, 1).expand(unpacked.size(0),
+                                               unpacked.size(2)).unsqueeze(1)
+        return unpacked.gather(1, idx).squeeze()
+
     def forward(self, X, X_lengths):
         # reset the LSTM hidden state. Must be done before you run a new batch. Otherwise the LSTM will treat
         # a new batch as a continuation of a sequence
@@ -65,14 +73,16 @@ class FullLSTM(nn.Module):
 
         # undo the packing operation
         X, _ = torch.nn.utils.rnn.pad_packed_sequence(X, batch_first=True)
+        X = self.last_timestep(X, X_lengths)
+
 
         # ---------------------
         # 3. Project to tag space
         # Dim transformation: (batch_size, seq_len, hidden_dimensions) -> (batch_size * seq_len, hidden_dimensions)
 
         # this one is a bit tricky as well. First we need to reshape the data so it goes into the linear layer
-        X = X.contiguous()
-        X = X.view(-1, X.shape[2])
+        # X = X.contiguous()
+        # X = X.view(-1, X.shape[2])
 
         # run through actual linear layer
         X = self.linear(X)
@@ -83,7 +93,7 @@ class FullLSTM(nn.Module):
         # X = F.log_softmax(X, dim=1)
 
         # I like to reshape for mental sanity so we're back to (batch_size, seq_len, output_dimension)
-        X = X.view(batch_size, seq_len, self.output_dimension)
+        # X = X.view(batch_size, seq_len, self.output_dimension)
 
         Y_hat = X
         return Y_hat
@@ -111,17 +121,20 @@ class FullLSTM(nn.Module):
         # pick the values for the label and zero out the rest with the mask
         # Y_hat = Y_hat[range(Y_hat.shape[0]), Y] * mask
         # Y_hat = Y_hat[range(Y_hat.shape[0])]
-        mask = [s - 1 for s in X_lengths]
+        x_max = np.max(X_lengths)
+        mask = np.array(range(len(X_lengths)))*x_max + X_lengths -1
+        # mask = [s - 1 for s in X_lengths]
+        # mask
+
         Y_hat = Y_hat[mask, 0]
 
 
         # compute cross entropy loss which ignores all <PAD> tokens
         # ce_loss = -torch.sum(Y_hat) / nb_tokens
         loss = self.criterion(Y_hat, Y)
-        return loss
+        return loss, Y_hat
 
-
-seqs = [[1,2,3],[4,5,6,7,8,9], [4,3,2,1]]
+seqs = [[1,2,3],[-4,-5,-6,-7,-8,-9], [40,30,20,10]]
 seqs_len = [len(s) for s in seqs]
 max_len = max(seqs_len)
 seqs_pad = [s + [0]*(max_len - len(s)) for s in seqs]
@@ -137,11 +150,12 @@ decay = 0.9
 
 model = FullLSTM(input_dimensions=1, batch_size=3)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=decay)
-
+loss = model.criterion
 losses = []
-for i in range(1000):
+for i in range(3000):
     yhat = model(x, seqs_len)
-    loss = model.loss(yhat, torch.Tensor(target), seqs_len)
+    # loss, yhat = model.loss(yhat, torch.Tensor(target), seqs_len)
+    loss = model.criterion(yhat.squeeze(1), torch.Tensor(target))
     print(i)
     losses.append(loss)
     optimizer.zero_grad()
@@ -151,3 +165,5 @@ for i in range(1000):
 
 
 plot_loss(losses)
+
+plot_pred(yhat.detach().squeeze(), target)
