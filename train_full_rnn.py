@@ -154,6 +154,7 @@ from torch.autograd import Variable
 
 batchpath = "C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\batchlist.txt"
 jsonpath = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\labels.json'
+saveloss = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\saveloss.txt'
 batch_size = 1
 train_dataset = DatasetLstmFull(jsonpath, batchpath)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -179,8 +180,11 @@ for batch_idx, (data, target, x_length) in enumerate(train_loader):
     loss.backward()
     optimizer.step()
     if batch_idx % 10 == 0 :
-        print('loss {}').format(loss)
-    if batch_idx % 100 == 0 :
+        print('loss {}'.format(loss))
+    if batch_idx % 50 == 0 :
+        with open(saveloss, "w") as f:
+            for item in losses:
+                f.write("%s," % item)
         plot_loss(losses)
 
 plot_pred(yhat.detach().squeeze(), target)
