@@ -5,6 +5,7 @@ from torch.nn import functional as F
 import torch
 import numpy as np
 from mgtUtils import plot_loss, plot_pred
+import os
 
 class FullLSTM(nn.Module):
     def __init__(self, input_dimensions, output_dimension=1, hidden_dimensions=100, nb_layers=1, batch_size=3):
@@ -166,7 +167,7 @@ model = FullLSTM(input_dimensions=input_dimension, batch_size=batch_size)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=decay)
 loss = model.criterion
 losses = []
-
+model_path = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\saved_models\\'
 for batch_idx, (data, target, x_length) in enumerate(train_loader):
     print(batch_idx)
     data = data.squeeze(0).transpose(0, 2).transpose(0, 1)
@@ -181,10 +182,33 @@ for batch_idx, (data, target, x_length) in enumerate(train_loader):
     optimizer.step()
     if batch_idx % 10 == 0 :
         print('loss {}'.format(loss))
-    if batch_idx % 50 == 0 :
+    if batch_idx % 100 == 0 :
         with open(saveloss, "w") as f:
             for item in losses:
                 f.write("%s," % item)
-        plot_loss(losses)
+                torch.save(model.state_dict(), os.path.join(model_path, f'batch-{batch_idx + 1}.pt'))
+plot_loss(losses)
+
+
+# if load_model:
+model.load_state_dict(torch.load(os.path.join(model_path, 'batch-1101.pt')))
+model.eval()
+
+
+predictions = []
+actual = []
+with torch.no_grad():
+    for batch_idx, (data, target, x_length) in enumerate(train_loader):
+        print(batch_idx)
+        data = data.squeeze(0).transpose(0, 2).transpose(0, 1)
+        data, target = Variable(data), Variable(target)
+        yhat = model(data, [x_length])
+        # loss, yhat = model.loss(yhat, torch.Tensor(target), seqs_len)
+        loss = model.criterion(yhat, target.squeeze(1))
+        predictions.append(yhat.item())
+        actual.append(target.item())
+        if batch_idx == 10:
+            break
 
 plot_pred(yhat.detach().squeeze(), target)
+

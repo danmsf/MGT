@@ -100,3 +100,52 @@ class DatasetLstmFull(Dataset):
         inputs_pad[:,:,:x_length] = inputs
         target = torch.Tensor([self.target[ID]])
         return inputs_pad, target, x_length
+
+
+class DatasetLstmFullAll(Dataset):
+
+    def __init__(self, labelspath, batchlist, transform=None):
+        self.db = pyodbc.connect('Driver={SQL Server};'
+                        'UID=Dan;'
+                        'Server=localhost;'
+                        'Database=Cimplicity;'
+                        'PWD=D@2019;'
+                        'Trusted_Connection=no;')
+        self.listIDs, self.targetdict = self.__getindexlabels__(labelspath, batchlist)
+        self.len = self.__len__()
+        self.input, self.target, self.input_length = self.__loaddata__()
+
+    def __len__(self):
+        return len(self.listIDs)
+
+    def __getindexlabels__(self, jsonpath, batchlist):
+        with open(jsonpath, "r") as file:
+            labels = json.load(file)
+
+        with open(batchlist, "r") as file:
+            index_list = file.read().split('\n')
+        return index_list[:-2], labels
+
+    def __loaddata__(self):
+        query = "SELECT BATCH_VAL0, STATESTR_VAL0, timeFromStartBatch, Temp1, Temp11, Temp2, Temp6, Temp7, Temp8, RPM1, RPM2, RPM3, Curr3, Prss1, WT1, WT2" + \
+                " FROM [dbo].[GSTAT_CYAN_CTR_Final] WHERE STATESTR_VAL0 IN ('Pre-Mixing','Heating1','Hot1') AND BATCH_VAL0 IN {} ".format(
+                    tuple(self.listIDs))
+        data = pd.read_sql(query, self.db)
+        data_list = []
+        data_length = []
+        target_list = []
+        for b, tbl in data.groupby('BATCH_VAL0'):
+            tbl = torch.from_numpy(tbl \
+                                      .sort_values(['timeFromStartBatch']) \
+                                      .drop(columns=['STATESTR_VAL0', 'BATCH_VAL0', 'timeFromStartBatch']) \
+                                      .values.T).to(torch.float32).view(-1, tbl.shape[0])
+            x_length = tbl.shape[1]
+            tbl_pad = torch.zeros(size=(tbl.shape[0], 3000))
+            tbl_pad[:, :x_length] = tbl
+            data_list.append(tbl_pad)
+            target_list.append(self.targetdict[str(b)])
+            data_length.append(x_length)
+        return data_list, target_list, data_length
+
+    def __getitem__(self, index):
+        return self.input[index], self.target[index], self.input_length[index]
