@@ -113,7 +113,7 @@ class DatasetLstmFullAll(Dataset):
                         'Trusted_Connection=no;')
         self.listIDs, self.targetdict = self.__getindexlabels__(labelspath, batchlist)
         self.len = self.__len__()
-        self.input, self.target, self.input_length = self.__loaddata__()
+        self.input, self.target, self.input_length, self.target_mean, self.target_std = self.__loaddata__()
 
     def __len__(self):
         return len(self.listIDs)
@@ -145,7 +145,10 @@ class DatasetLstmFullAll(Dataset):
             data_list.append(tbl_pad)
             target_list.append(self.targetdict[str(b)])
             data_length.append(x_length)
-        return data_list, target_list, data_length
+        target_mean = np.mean(target_list)
+        target_std = np.std(target_list)
+        target_list = [(m-target_mean)/target_std for m in target_list]
+        return data_list, target_list, data_length, target_mean, target_std
 
     def __getitem__(self, index):
         return self.input[index], self.target[index], self.input_length[index]
