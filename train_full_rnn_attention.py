@@ -23,8 +23,6 @@ class LstmEncoder(nn.Module):
             bidirectional=bidirectional
             )
 
-        self.linear = nn.Linear(self.hidden_dimensions, self.output_dimension)
-        self.criterion = torch.nn.MSELoss(reduction='mean')
         self.on_gpu = False
 
     def init_hidden(self):
@@ -75,63 +73,12 @@ class LstmEncoder(nn.Module):
 
         # undo the packing operation
         X, _ = torch.nn.utils.rnn.pad_packed_sequence(X, batch_first=True)
-        # X = self.last_timestep(X, X_lengths)
+        X_last = self.last_timestep(X, X_lengths)
 
-        return X, self.hidden
+        return X, X_last, self.hidden
 
 class AttentionDecoder(nn.Module):
 
     def __init__(self, hidden_size, output_size, vocab_size):
         super(AttentionDecoder, self).__init__()
-        self.hidden_size = hidden_size
-        self.output_size = output_size
 
-        self.attn = nn.Linear(hidden_size + output_size, 1)
-        self.lstm = nn.LSTM(hidden_size + vocab_size,
-                            output_size)  # if we are using embedding hidden_size should be added with embedding of vocab size
-        self.final = nn.Linear(output_size, vocab_size)
-
-    def init_hidden(self):
-        # self.nb_lstm_layers, self.batch_size
-        return (torch.zeros(1, 1, self.output_size),
-                torch.zeros(1, 1, self.output_size))
-
-    def forward(self, decoder_hidden, encoder_outputs, input):
-        weights = []
-        for i in range(len(encoder_outputs)):
-            print(decoder_hidden[0][0].shape)
-            print(encoder_outputs[0].shape)
-            weights.append(self.attn(torch.cat((decoder_hidden[0][0],
-                                                encoder_outputs[i]), dim=1)))
-        normalized_weights = F.softmax(torch.cat(weights, 1), 1)
-
-        attn_applied = torch.bmm(normalized_weights.unsqueeze(1),
-                                 encoder_outputs.view(1, -1, self.hidden_size))
-
-        input_lstm = torch.cat((attn_applied[0], input[0]),
-                               dim=1)  # if we are using embedding, use embedding of input here instead
-
-        output, hidden = self.lstm(input_lstm.unsqueeze(0), decoder_hidden)
-
-        output = self.final(output[0])
-
-
-        return output, hidden, normalized_weights
-
-
-# class FnnAttention():
-bidirectional = False
-c = LstmEncoder(input_dimensions=10, hidden_dimensions=20, bidirectional=bidirectional, batch_size=1)
-c.init_hidden()
-x = torch.randn(10).unsqueeze(0).unsqueeze(2)
-a, b = c.forward(x, X_lengths=[10])
-print(a.shape)
-print(b[0].shape)
-print(b[1].shape)
-
-x = AttentionDecoder(20 * (1 + bidirectional), 25, 30)
-y, z, w = x.forward(x.init_hidden(), torch.cat((a, a)), torch.zeros(1, 1, 30))  # Assuming <SOS> to be all zeros
-print(y.shape)
-print(z[0].shape)
-print(z[1].shape)
-print(w)
