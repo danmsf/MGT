@@ -1,20 +1,24 @@
-from mgtModels import FullLSTM
+from models.mgtModels import FullLSTM
 import torch
 from torch.utils.data import DataLoader
-from dataset import DatasetLstmFullAll
+from models.dataset import DatasetLstmFullAll
 from torch.autograd import Variable
-from mgtUtils import plot_loss
+from models.mgtUtils import plot_loss
 import os
+import json
+
+settings = json.loads(open(os.getcwd() + "/params.json").read())
+fp = settings['filepaths']
 
 lr = 1e-06
 decay = 0.9
 batch_size = 10
 num_epochs = 1
 load_model = False
-batchpath = "C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\batchlist.txt"
-jsonpath = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\labels.json'
-saveloss = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\saveloss.txt'
-model_path = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\saved_models\\fullrnn\\'
+batchpath = fp['Data']['Batches']
+jsonpath = fp['Data']['Labels']
+saveloss = fp['Data']['SaveLoss']
+model_path = os.path.join(fp['Models'], 'fullrnn')
 
 train_dataset = DatasetLstmFullAll(jsonpath, batchpath)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)

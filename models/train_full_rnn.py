@@ -4,8 +4,12 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 import torch
 import numpy as np
-from mgtUtils import plot_loss, plot_pred
+from models.mgtUtils import plot_loss, plot_pred
 import os
+import json
+
+settings = json.loads(open(os.getcwd() + "/params.json").read())
+fp = settings['filepaths']
 
 class FullLSTM(nn.Module):
     def __init__(self, input_dimensions, output_dimension=1, hidden_dimensions=100, nb_layers=1, batch_size=3):
@@ -149,25 +153,25 @@ lr = 1e-04
 decay = 0.9
 
 from torch.utils.data import DataLoader
-from dataset import  DatasetLstmFull
+from models.dataset import DatasetLstmFull
 from torch.autograd import Variable
 
 
-batchpath = "C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\batchlist.txt"
-jsonpath = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\labels.json'
-saveloss = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\saveloss.txt'
+batchpath = fp['Data']['Batches']
+jsonpath = fp['Data']['Labels']
+saveloss = fp['Data']['SaveLoss']
 batch_size = 1
 train_dataset = DatasetLstmFull(jsonpath, batchpath)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 x, y, x_length = train_dataset.__getitem__(10)
-input_dimension = x.transpose(0,2).transpose(0,1).shape[2]
+input_dimension = x.transpose(0, 2).transpose(0, 1).shape[2]
 
 model = FullLSTM(input_dimensions=input_dimension, batch_size=batch_size)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=decay)
 loss = model.criterion
 losses = []
-model_path = 'C:\\Users\\Dan\\PycharmProjects\\MGT\\saved_models\\'
+model_path = os.path.join(fp['Models'], 'fullrnn')
 for batch_idx, (data, target, x_length) in enumerate(train_loader):
     print(batch_idx)
     data = data.squeeze(0).transpose(0, 2).transpose(0, 1)

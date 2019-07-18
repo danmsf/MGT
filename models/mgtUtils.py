@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import SubsetRandomSampler, DataLoader
 
+
 def plot_pred(pred, actual):
-    sns.jointplot(pred, actual, kind='reg',joint_kws={'line_kws':{'color':'green'}, 'scatter_kws':{"s": 2}})
+    sns.jointplot(pred, actual, kind='reg', joint_kws={'line_kws': {'color': 'green'}, 'scatter_kws': {"s": 2}})
 
 
 def plot_loss(losses):
@@ -13,7 +14,7 @@ def plot_loss(losses):
     axs.plot(losses)
 
 
-def split_sample(dataset, validation_split=0.2, shuffle_dataset=True, random_seed=42, batch_size = 128):
+def split_sample(dataset, validation_split=0.2, shuffle_dataset=True, random_seed=42, batch_size=128):
     # Creating data indices for training and validation splits:
     dataset_size = len(dataset)
     indices = list(range(dataset_size))

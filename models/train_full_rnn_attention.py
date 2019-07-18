@@ -4,10 +4,16 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 import torch
 import numpy as np
+import json
+import os
+
+settings = json.loads(open(os.getcwd() + "/params.json").read())
+fp = settings['filepaths']
 
 
 class LstmEncoder(nn.Module):
-    def __init__(self, input_dimensions, hidden_dimensions=100, output_dimension=1, nb_layers=1, batch_size=1, bidirectional=False):
+    def __init__(self, input_dimensions, hidden_dimensions=100, output_dimension=1, nb_layers=1, batch_size=1,
+                 bidirectional=False):
         super(LstmEncoder, self).__init__()
 
         self.nb_lstm_layers = nb_layers
@@ -21,7 +27,7 @@ class LstmEncoder(nn.Module):
             num_layers=self.nb_lstm_layers,
             batch_first=True,
             bidirectional=bidirectional
-            )
+        )
 
         self.on_gpu = False
 
@@ -77,8 +83,8 @@ class LstmEncoder(nn.Module):
 
         return X, X_last, self.hidden
 
+
 class AttentionDecoder(nn.Module):
 
     def __init__(self, hidden_size, output_size, vocab_size):
         super(AttentionDecoder, self).__init__()
-

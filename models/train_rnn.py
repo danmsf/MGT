@@ -6,16 +6,19 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import math
 import numpy as np
-from dataset import  DatasetLstmMGT
+from models.dataset import DatasetLstmMGT
 from torch.utils.data import DataLoader
 import os
-from mgtModels import RnnModel
-from mgtUtils import plot_loss, plot_pred, split_sample
-
+from models.mgtModels import RnnModel
+from models.mgtUtils import plot_loss, plot_pred, split_sample
+import json
 
 def str2bool(v):
       return v.lower() in ('true', '1')
 
+
+settings = json.loads(open(os.getcwd() + "/params.json").read())
+fp = settings['filepaths']
 
 parser = argparse.ArgumentParser(description="Recurrent Neural Network")
 
@@ -28,8 +31,8 @@ parser.add_argument('--epochs', default=100, help='')
 parser.add_argument('--log_interval', default=10, help='')
 parser.add_argument('--random_seed', default=1234, help='')
 parser.add_argument('--use_cuda', type=str2bool, default=False, help='')
-parser.add_argument('--model_path', type=str, default='C:\\Users\\Dan\\PycharmProjects\\MGT\\saved_models\\rnn')
-parser.add_argument('--data_path', type=str, default='C:\\Users\\Dan\\PycharmProjects\\MGT\\data\\panel_stages.csv')
+parser.add_argument('--model_path', type=str, default=fp['Models'])
+parser.add_argument('--data_path', type=str, default=fp['Data']['Stages'])
 
 args = vars(parser.parse_args())
 
@@ -53,7 +56,7 @@ decay = args['decay']
 hidden_dimensions = args['hidden_dimensions']
 epochs = args['epochs']
 log_interval = args['log_interval']
-model_path = args['model_path']
+model_path = os.path.join(args['model_path'], 'rnn')
 data_path = args['data_path']
 
 dataset = DatasetLstmMGT(data_path)
